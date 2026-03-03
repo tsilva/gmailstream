@@ -1,6 +1,6 @@
 from pathlib import Path
 
-DEFAULT_BASE_DIR = Path.home() / ".gmail-streamer"
+DEFAULT_BASE_DIR = Path.home() / ".gmailstream"
 DEFAULT_PROFILES_DIR = DEFAULT_BASE_DIR / "profiles"
 
 
@@ -9,7 +9,7 @@ def get_profiles_dir(override: str | None = None) -> Path:
 
     Priority:
     1. Explicit override (--profile-dir flag or GMAIL_STREAMER_PROFILE_DIR env var)
-    2. ~/.gmail-streamer/profiles/ (default)
+    2. ~/.gmailstream/profiles/ (default)
     """
     if override:
         return Path(override).resolve()

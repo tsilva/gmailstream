@@ -191,7 +191,7 @@ def profiles_init(ctx, name):
     click.echo(
         "\nNext, you need a Google OAuth credentials file.\n"
         "Follow the guide to create one:\n"
-        "  https://github.com/tsilva/gmail-streamer/blob/main/docs/credentials-guide.md\n"
+        "  https://github.com/tsilva/gmailstream/blob/main/docs/credentials-guide.md\n"
     )
     creds_src = click.prompt("Path to your downloaded credentials.json")
     creds_src_path = Path(creds_src).expanduser().resolve()
@@ -226,7 +226,7 @@ def profiles_init(ctx, name):
     click.echo(f"  Filter   : {filter_query}")
     click.echo(f"  Output   : {target_directory}")
     click.echo(f"  Mode     : {mode}")
-    click.echo(f"\nRun it with:\n  gmail-streamer run {name}")
+    click.echo(f"\nRun it with:\n  gmailstream run {name}")
 
 
 @profiles_group.command("show")

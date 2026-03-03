@@ -54,5 +54,5 @@ profiles/*/
 profiles/example/credentials.json
 profiles/example/state.json
 profiles/example/token.json
-src/gmail_streamer/_build_info.py
+src/gmailstream/_build_info.py
 !profiles/example/

@@ -17,8 +17,8 @@ class CustomBuildHook(BuildHookInterface):
         except (subprocess.CalledProcessError, FileNotFoundError):
             git_hash = "unknown"
 
-        build_info_path = Path(self.root) / "src" / "gmail_streamer" / "_build_info.py"
+        build_info_path = Path(self.root) / "src" / "gmailstream" / "_build_info.py"
         build_info_path.write_text(f'GIT_HASH = "{git_hash}"\n')
 
         # Force include the generated file
-        build_data["force_include"][str(build_info_path)] = "gmail_streamer/_build_info.py"
+        build_data["force_include"][str(build_info_path)] = "gmailstream/_build_info.py"

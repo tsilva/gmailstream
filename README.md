@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="logo.png" alt="gmail-streamer" width="512"/>
+  <img src="logo.png" alt="gmailstream" width="512"/>
 
   [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://python.org)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -10,7 +10,7 @@
 
 ## ✨ Features
 
-[![CI](https://github.com/tsilva/gmail-streamer/actions/workflows/ci.yml/badge.svg)](https://github.com/tsilva/gmail-streamer/actions/workflows/ci.yml)
+[![CI](https://github.com/tsilva/gmailstream/actions/workflows/ci.yml/badge.svg)](https://github.com/tsilva/gmailstream/actions/workflows/ci.yml)
 
 - **🗂️ Profile-based configuration** — run multiple independent download profiles, each with its own filters, credentials, and output directory
 - **🔐 OAuth2 authentication** — secure Google sign-in with automatic token caching
@@ -25,15 +25,15 @@
 ### 1. Install
 
 ```bash
-git clone https://github.com/tsilva/gmail-streamer.git
-cd gmail-streamer
+git clone https://github.com/tsilva/gmailstream.git
+cd gmailstream
 uv tool install . --force --no-cache
 ```
 
 ### 2. Create a profile
 
 ```bash
-gmail-streamer profiles init my-profile
+gmailstream profiles init my-profile
 ```
 
 This interactive wizard will:
@@ -41,12 +41,12 @@ This interactive wizard will:
 - Guide you to create OAuth credentials ([see credentials guide](docs/credentials-guide.md))
 - Copy your `credentials.json` and open a browser for Google authorization immediately
 
-Your profile is stored at `~/.gmail-streamer/profiles/my-profile/`.
+Your profile is stored at `~/.gmailstream/profiles/my-profile/`.
 
 ### 3. Run
 
 ```bash
-gmail-streamer run my-profile
+gmailstream run my-profile
 ```
 
 Subsequent runs reuse the cached OAuth token and pick up only new messages.
@@ -56,21 +56,21 @@ Subsequent runs reuse the cached OAuth token and pick up only new messages.
 The profiles directory is resolved in this order:
 
 1. `--profile-dir` flag or `GMAIL_STREAMER_PROFILE_DIR` env var
-2. `~/.gmail-streamer/profiles/` (default)
+2. `~/.gmailstream/profiles/` (default)
 
 The `profile` argument can be a **name** (looked up in the profiles directory) or a **path** to an existing directory (backward compatible).
 
 ## 🛠️ CLI Reference
 
 ```bash
-gmail-streamer run <profile>                         # Download messages
-gmail-streamer run <profile> --from 2024-01-01       # From a start date
-gmail-streamer run <profile> --to 2024-12-31         # Up to an end date
-gmail-streamer --verbose run <profile>               # Enable debug logging
-gmail-streamer --profile-dir /path run <profile>     # Custom profiles directory
-gmail-streamer profiles list                         # List available profiles
-gmail-streamer profiles init <name>                  # Create a new profile (interactive)
-gmail-streamer profiles show <name>                  # Show profile config
+gmailstream run <profile>                         # Download messages
+gmailstream run <profile> --from 2024-01-01       # From a start date
+gmailstream run <profile> --to 2024-12-31         # Up to an end date
+gmailstream --verbose run <profile>               # Enable debug logging
+gmailstream --profile-dir /path run <profile>     # Custom profiles directory
+gmailstream profiles list                         # List available profiles
+gmailstream profiles init <name>                  # Create a new profile (interactive)
+gmailstream profiles show <name>                  # Show profile config
 ```
 
 ## ⚙️ Profile Structure
