@@ -1,28 +1,14 @@
 <div align="center">
-  <img src="logo.png" alt="gmailstream" width="512"/>
-
-  [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://python.org)
-  [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+  <img src="https://raw.githubusercontent.com/tsilva/gmailstream/main/logo.png" alt="gmailstream" width="512"/>
 
   **📧 Download Gmail messages matching your filters to local files 📥**
-
 </div>
 
-## ✨ Features
+gmailstream is a Python CLI for downloading Gmail messages through OAuth2. It uses named profiles so each export can keep its own Gmail search query, credentials, mode, and target directory.
 
-[![CI](https://github.com/tsilva/gmailstream/actions/workflows/ci.yml/badge.svg)](https://github.com/tsilva/gmailstream/actions/workflows/ci.yml)
+Use it to archive full `.eml` messages or save attachments from messages matched by Gmail search filters such as `from:`, `has:attachment`, `after:`, labels, and other Gmail query syntax.
 
-- **🗂️ Profile-based configuration** — run multiple independent download profiles, each with its own filters, credentials, and output directory
-- **🔐 OAuth2 authentication** — secure Google sign-in with automatic token caching
-- **📧 Full message download** — save complete `.eml` files for archival
-- **📎 Attachments-only mode** — grab just the attachments, skip the rest
-- **🧠 Incremental downloads** — remembers what's already been downloaded, no duplicates across runs
-- **🔍 Gmail search filters** — use any Gmail search query (`from:`, `has:attachment`, `after:`, label filters, etc.)
-- **🏠 Works from anywhere** — install globally with `uv` and run from any directory
-
-## 🚀 Quick Start
-
-### 1. Install
+## Install
 
 ```bash
 git clone https://github.com/tsilva/gmailstream.git
@@ -30,70 +16,45 @@ cd gmailstream
 uv tool install . --force --no-cache
 ```
 
-### 2. Create a profile
+Create and authorize a profile, then run it:
 
 ```bash
 gmailstream profiles init my-profile
-```
-
-This interactive wizard will:
-- Prompt for your Gmail filter, output directory, and download mode
-- Guide you to create OAuth credentials ([see credentials guide](docs/credentials-guide.md))
-- Copy your `credentials.json` and open a browser for Google authorization immediately
-
-Your profile is stored at `~/.gmailstream/profiles/my-profile/`.
-
-### 3. Run
-
-```bash
 gmailstream run my-profile
 ```
 
-Subsequent runs reuse the cached OAuth token and pick up only new messages.
+The init flow prompts for a Gmail filter, output directory, download mode, and a Google OAuth `credentials.json` file. See [Creating OAuth Credentials](docs/credentials-guide.md) for the Google Cloud setup.
 
-## 📁 Profile Resolution
-
-The profiles directory is resolved in this order:
-
-1. `--profile-dir` flag or `GMAIL_STREAMER_PROFILE_DIR` env var
-2. `~/.gmailstream/profiles/` (default)
-
-The `profile` argument can be a **name** (looked up in the profiles directory) or a **path** to an existing directory (backward compatible).
-
-## 🛠️ CLI Reference
+## Commands
 
 ```bash
-gmailstream run <profile>                         # Download messages
-gmailstream run <profile> --from 2024-01-01       # From a start date
-gmailstream run <profile> --to 2024-12-31         # Up to an end date
-gmailstream --verbose run <profile>               # Enable debug logging
-gmailstream --profile-dir /path run <profile>     # Custom profiles directory
-gmailstream profiles list                         # List available profiles
-gmailstream profiles init <name>                  # Create a new profile (interactive)
-gmailstream profiles show <name>                  # Show profile config
+uv sync                                           # install development dependencies
+uv tool install . --force --no-cache              # install the CLI from this checkout
+gmailstream run <profile>                         # download new matching messages
+gmailstream run <profile> --from 2024-01-01       # limit by start date
+gmailstream run <profile> --to 2024-12-31         # limit by end date
+gmailstream --verbose run <profile>               # enable debug logging
+gmailstream --profile-dir /path run <profile>     # use a custom profiles directory
+gmailstream profiles list                         # list profiles
+gmailstream profiles init <name>                  # create and authenticate a profile
+gmailstream profiles show <name>                  # print profile config
 ```
 
-## ⚙️ Profile Structure
+## Notes
 
-Each profile lives in its own directory with:
+- Requires Python 3.12+ and `uv`.
+- Profiles live in `~/.gmailstream/profiles/` by default. Override this with `--profile-dir` or `GMAIL_STREAMER_PROFILE_DIR`.
+- A profile can also be passed as a direct path to an existing profile directory.
+- Each profile contains `config.yaml`, user-supplied `credentials.json`, and auto-generated `token.json`.
+- `mode: full` saves `message.eml`, attachments, and `metadata.json`. `mode: attachments_only` saves attachments plus `metadata.json`.
+- Downloads are organized under the target directory as `YYYY-MM/YYYY-MM-DD - subject - shortid/`.
+- Runs are incremental by default. Explicit `--from` or `--to` date ranges search that date range and skip files already present there.
+- `credentials.json` and `token.json` are sensitive local files and are ignored by git.
 
-| File | Purpose |
-|------|---------|
-| `config.yaml` | Filter query, target directory, download mode |
-| `credentials.json` | OAuth client credentials (you provide this) |
-| `token.json` | Auto-generated after first OAuth flow |
+## Architecture
 
-## 🏗️ Architecture
+![gmailstream architecture diagram](./architecture.png)
 
-| Module | Responsibility |
-|--------|---------------|
-| `cli.py` | Click CLI entry point (group with `run` and `profiles` subcommands) |
-| `paths.py` | Profile directory resolution and discovery |
-| `config.py` | Loads and validates `config.yaml` into a `ProfileConfig` dataclass |
-| `auth.py` | OAuth2 flow with token caching |
-| `gmail_client.py` | Gmail API wrapper: search, fetch messages, fetch attachments |
-| `storage.py` | Saves `.eml` files and attachments to disk |
-
-## 📄 License
+## License
 
 [MIT](LICENSE)
