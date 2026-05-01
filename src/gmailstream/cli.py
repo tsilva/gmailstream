@@ -7,16 +7,16 @@ from pathlib import Path
 import click
 import yaml
 
-from gmail_streamer.auth import get_gmail_service
-from gmail_streamer.config import load_config
-from gmail_streamer.gmail_client import (
+from gmailstream.auth import get_gmail_service
+from gmailstream.config import load_config
+from gmailstream.gmail_client import (
     fetch_attachments,
     fetch_message_metadata,
     fetch_raw_message,
     search_messages,
 )
-from gmail_streamer.paths import get_profiles_dir, list_profiles, resolve_profile
-from gmail_streamer.storage import save_attachments, save_eml, save_metadata, scan_downloaded_metadata
+from gmailstream.paths import get_profiles_dir, list_profiles, resolve_profile
+from gmailstream.storage import save_attachments, save_eml, save_metadata, scan_downloaded_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -80,14 +80,20 @@ def run(ctx, profile, from_date, to_date):
     if from_date or to_date:
         # Explicit date range mode — ignore incremental tracking
         downloaded_ids, _ = scan_downloaded_metadata(target, from_date=from_date, to_date=to_date)
-        click.echo(f"Date range: {from_date or 'beginning'} to {to_date or 'now'} ({len(downloaded_ids)} already downloaded)")
+        click.echo(
+            f"Date range: {from_date or 'beginning'} to {to_date or 'now'} "
+            f"({len(downloaded_ids)} already downloaded)"
+        )
         click.echo(f"Searching: {config.filter}")
         msg_ids = search_messages(service, config.filter, after_date=from_date, before_date=to_date)
     else:
         # Incremental mode (existing behavior)
         downloaded_ids, most_recent_date = scan_downloaded_metadata(target)
         if most_recent_date:
-            click.echo(f"Resuming from {most_recent_date} ({len(downloaded_ids)} already downloaded)")
+            click.echo(
+                f"Resuming from {most_recent_date} "
+                f"({len(downloaded_ids)} already downloaded)"
+            )
         click.echo(f"Searching: {config.filter}")
         msg_ids = search_messages(service, config.filter, after_date=most_recent_date)
 

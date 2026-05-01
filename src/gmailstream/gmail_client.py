@@ -19,7 +19,13 @@ def _retry_api_call(fn, max_retries=3):
             status = e.resp.status
             if status in RETRYABLE_STATUS_CODES and attempt < max_retries - 1:
                 wait = 2**attempt
-                logger.debug("API returned %d, retrying in %ds (attempt %d/%d)", status, wait, attempt + 1, max_retries)
+                logger.debug(
+                    "API returned %d, retrying in %ds (attempt %d/%d)",
+                    status,
+                    wait,
+                    attempt + 1,
+                    max_retries,
+                )
                 time.sleep(wait)
             else:
                 raise
@@ -64,10 +70,15 @@ def fetch_message_metadata(service, msg_id: str) -> dict:
     """Fetch message metadata and return a dict with key fields."""
     logger.debug("Fetching metadata for %s", msg_id)
     msg = _retry_api_call(
-        lambda: service.users().messages().get(
-            userId="me", id=msg_id, format="metadata",
+        lambda: service.users()
+        .messages()
+        .get(
+            userId="me",
+            id=msg_id,
+            format="metadata",
             metadataHeaders=["From", "To", "Subject", "Date"],
-        ).execute()
+        )
+        .execute()
     )
 
     headers = {h["name"]: h["value"] for h in msg.get("payload", {}).get("headers", [])}
@@ -107,7 +118,12 @@ def fetch_attachments(service, msg_id: str) -> list[dict]:
             try:
                 data = base64.urlsafe_b64decode(att["data"])
             except (KeyError, ValueError) as e:
-                logger.warning("Failed to decode attachment '%s' for message %s: %s", filename, msg_id, e)
+                logger.warning(
+                    "Failed to decode attachment '%s' for message %s: %s",
+                    filename,
+                    msg_id,
+                    e,
+                )
                 continue
             attachments.append({"filename": filename, "data": data})
     return attachments

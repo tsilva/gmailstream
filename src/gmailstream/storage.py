@@ -72,7 +72,9 @@ def save_metadata(target_dir: Path, msg_id: str, date: str, subject: str, metada
         raise OSError(f"Failed to save metadata for message {msg_id} to {dest}: {e}") from e
 
 
-def save_attachments(target_dir: Path, msg_id: str, date: str, subject: str, attachments: list[dict]):
+def save_attachments(
+    target_dir: Path, msg_id: str, date: str, subject: str, attachments: list[dict]
+):
     """Save attachments inside a per-message directory."""
     dest = _message_dir(target_dir, msg_id, date, subject)
     try:
@@ -85,10 +87,14 @@ def save_attachments(target_dir: Path, msg_id: str, date: str, subject: str, att
             logger.debug("Saving attachment %s", filepath)
             filepath.write_bytes(att["data"])
         except OSError as e:
-            raise OSError(f"Failed to save attachment '{att['filename']}' for message {msg_id}: {e}") from e
+            raise OSError(
+                f"Failed to save attachment '{att['filename']}' for message {msg_id}: {e}"
+            ) from e
 
 
-def _scan_legacy_json_files(glob_iter, downloaded_ids: set[str], most_recent_date: str | None) -> str | None:
+def _scan_legacy_json_files(
+    glob_iter, downloaded_ids: set[str], most_recent_date: str | None
+) -> str | None:
     """Parse old flat metadata JSON files for backward compat. Extracts short IDs."""
     for meta_path in glob_iter:
         try:
@@ -118,7 +124,9 @@ def scan_downloaded_metadata(
         return downloaded_ids, most_recent_date
 
     # Scan flat legacy JSON files in root (backward compat with pre-YYYY-MM layout)
-    most_recent_date = _scan_legacy_json_files(target_dir.glob("* - *.json"), downloaded_ids, most_recent_date)
+    most_recent_date = _scan_legacy_json_files(
+        target_dir.glob("* - *.json"), downloaded_ids, most_recent_date
+    )
 
     # Scan YYYY-MM subdirectories
     for month_dir in sorted(target_dir.iterdir()):
@@ -131,7 +139,9 @@ def scan_downloaded_metadata(
             continue
 
         # Scan legacy flat JSON files in month dir
-        most_recent_date = _scan_legacy_json_files(month_dir.glob("* - *.json"), downloaded_ids, most_recent_date)
+        most_recent_date = _scan_legacy_json_files(
+            month_dir.glob("* - *.json"), downloaded_ids, most_recent_date
+        )
 
         # Scan per-message directories (new layout)
         for msg_dir in month_dir.iterdir():

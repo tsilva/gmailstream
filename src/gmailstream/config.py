@@ -35,7 +35,12 @@ def load_config(profile_dir: Path) -> ProfileConfig:
     if not data.get("filter"):
         raise ValueError(f"Missing or empty 'filter' key in {config_path}")
 
-    logger.debug("Loaded config from %s: filter=%r, mode=%s", config_path, data.get("filter"), data.get("mode", "full"))
+    logger.debug(
+        "Loaded config from %s: filter=%r, mode=%s",
+        config_path,
+        data.get("filter"),
+        data.get("mode", "full"),
+    )
 
     try:
         config = ProfileConfig(**data)
