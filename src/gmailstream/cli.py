@@ -224,7 +224,7 @@ def profiles_init(ctx, name):
 
     # Step 1 — Config prompts
     filter_query = click.prompt("Gmail filter query", default="has:attachment")
-    default_target = str(Path.home() / "gmail-downloads" / name)
+    default_target = str(profile_dir / "downloads")
     target_directory = click.prompt("Target directory for downloads", default=default_target)
     mode = click.prompt(
         "Download mode",
@@ -246,8 +246,13 @@ def profiles_init(ctx, name):
         "Follow the guide to create one:\n"
         "  https://github.com/tsilva/gmailstream/blob/main/docs/credentials-guide.md\n"
     )
-    creds_src = click.prompt("Path to your downloaded credentials.json")
+    default_credentials = str(profile_dir / "credentials.json")
+    creds_src = click.prompt(
+        "Path to your downloaded credentials.json",
+        default=default_credentials,
+    )
     creds_src_path = Path(creds_src).expanduser().resolve()
+    creds_dest_path = profile_dir / "credentials.json"
 
     if not creds_src_path.exists():
         raise click.ClickException(f"File not found: {creds_src_path}")
@@ -262,8 +267,11 @@ def profiles_init(ctx, name):
     except json.JSONDecodeError as e:
         raise click.ClickException(f"credentials.json is not valid JSON: {e}")
 
-    copy_private_file(creds_src_path, profile_dir / "credentials.json")
-    click.echo("Credentials copied.")
+    if creds_src_path != creds_dest_path.resolve():
+        copy_private_file(creds_src_path, creds_dest_path)
+        click.echo("Credentials copied.")
+    else:
+        click.echo("Credentials ready.")
 
     # Step 3 — OAuth flow
     click.echo("\nOpening browser for Google authorization...")
