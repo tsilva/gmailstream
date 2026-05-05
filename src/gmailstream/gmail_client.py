@@ -32,6 +32,17 @@ def _retry_api_call(fn, max_retries=3):
     raise RuntimeError(f"API call failed after {max_retries} retries")
 
 
+def _format_gmail_search_date(date: str) -> str:
+    """Convert YYYY-MM-DD input to Gmail search date syntax."""
+    return datetime.strptime(date, "%Y-%m-%d").strftime("%Y/%m/%d")
+
+
+def _decode_base64url(data: str) -> bytes:
+    """Decode Gmail's base64url strings, which may omit padding."""
+    padded = data + ("=" * (-len(data) % 4))
+    return base64.urlsafe_b64decode(padded)
+
+
 def search_messages(
     service, query: str, after_date: str | None = None, before_date: str | None = None
 ) -> list[str]:
@@ -40,9 +51,9 @@ def search_messages(
     If after_date/before_date (YYYY-MM-DD) are provided, appends Gmail date filters.
     """
     if after_date:
-        query = f"{query} after:{after_date}"
+        query = f"{query} after:{_format_gmail_search_date(after_date)}"
     if before_date:
-        query = f"{query} before:{before_date}"
+        query = f"{query} before:{_format_gmail_search_date(before_date)}"
     logger.debug("Searching: %s", query)
     ids = []
     request = service.users().messages().list(userId="me", q=query)
@@ -61,7 +72,7 @@ def fetch_raw_message(service, msg_id: str) -> bytes:
         lambda: service.users().messages().get(userId="me", id=msg_id, format="raw").execute()
     )
     try:
-        return base64.urlsafe_b64decode(msg["raw"])
+        return _decode_base64url(msg["raw"])
     except (KeyError, ValueError) as e:
         raise ValueError(f"Failed to decode raw message {msg_id}: {e}") from e
 
@@ -96,6 +107,12 @@ def fetch_message_metadata(service, msg_id: str) -> dict:
     }
 
 
+def _walk_parts(part: dict):
+    yield part
+    for child in part.get("parts", []):
+        yield from _walk_parts(child)
+
+
 def fetch_attachments(service, msg_id: str) -> list[dict]:
     """Return list of {filename, data} for each attachment."""
     logger.debug("Fetching attachments for %s", msg_id)
@@ -103,27 +120,35 @@ def fetch_attachments(service, msg_id: str) -> list[dict]:
         lambda: service.users().messages().get(userId="me", id=msg_id).execute()
     )
     attachments = []
-    for part in msg.get("payload", {}).get("parts", []):
+    for part in _walk_parts(msg.get("payload", {})):
         filename = part.get("filename")
         body = part.get("body", {})
-        attachment_id = body.get("attachmentId")
-        if filename and attachment_id:
-            att = _retry_api_call(
-                lambda: service.users()
-                .messages()
-                .attachments()
-                .get(userId="me", messageId=msg_id, id=attachment_id)
-                .execute()
-            )
-            try:
-                data = base64.urlsafe_b64decode(att["data"])
-            except (KeyError, ValueError) as e:
-                logger.warning(
-                    "Failed to decode attachment '%s' for message %s: %s",
-                    filename,
-                    msg_id,
-                    e,
+        if not filename:
+            continue
+
+        try:
+            attachment_id = body.get("attachmentId")
+            if attachment_id:
+                att = _retry_api_call(
+                    lambda: service.users()
+                    .messages()
+                    .attachments()
+                    .get(userId="me", messageId=msg_id, id=attachment_id)
+                    .execute()
                 )
+                data = _decode_base64url(att["data"])
+            elif "data" in body:
+                data = _decode_base64url(body["data"])
+            else:
                 continue
-            attachments.append({"filename": filename, "data": data})
+        except (KeyError, ValueError) as e:
+            logger.warning(
+                "Failed to decode attachment '%s' for message %s: %s",
+                filename,
+                msg_id,
+                e,
+            )
+            continue
+
+        attachments.append({"filename": filename, "data": data})
     return attachments

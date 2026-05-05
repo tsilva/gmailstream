@@ -1,13 +1,13 @@
 import json
 import logging
 import re
-import shutil
+from datetime import datetime
 from pathlib import Path
 
 import click
 import yaml
 
-from gmailstream.auth import get_gmail_service
+from gmailstream.auth import copy_private_file, ensure_private_dir, get_gmail_service
 from gmailstream.config import load_config
 from gmailstream.env import load_app_env
 from gmailstream.gmail_client import (
@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 load_app_env()
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_PROFILE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 
 def _validate_date(value: str | None, param_name: str):
@@ -34,6 +35,23 @@ def _validate_date(value: str | None, param_name: str):
         raise click.BadParameter(
             f"Invalid date '{value}'. Expected format: YYYY-MM-DD",
             param_hint=f"'--{param_name}'",
+        )
+    try:
+        datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        raise click.BadParameter(
+            f"Invalid date '{value}'. Expected format: YYYY-MM-DD",
+            param_hint=f"'--{param_name}'",
+        )
+
+
+def _validate_profile_name(name: str) -> None:
+    """Validate a profile name for profile creation."""
+    if not _PROFILE_NAME_RE.fullmatch(name):
+        raise click.BadParameter(
+            "Use only letters, numbers, dots, underscores, and hyphens; "
+            "the name must start with a letter or number.",
+            param_hint="name",
         )
 
 
@@ -189,6 +207,7 @@ def profiles_list(ctx):
 @click.pass_context
 def profiles_init(ctx, name):
     """Interactively create and authenticate a new profile."""
+    _validate_profile_name(name)
     profiles_dir = ctx.obj["profiles_dir"]
     profile_dir = profiles_dir / name
 
@@ -207,7 +226,7 @@ def profiles_init(ctx, name):
         default="full",
     )
 
-    profile_dir.mkdir(parents=True)
+    ensure_private_dir(profile_dir)
     config = {
         "filter": filter_query,
         "target_directory": target_directory,
@@ -237,7 +256,7 @@ def profiles_init(ctx, name):
     except json.JSONDecodeError as e:
         raise click.ClickException(f"credentials.json is not valid JSON: {e}")
 
-    shutil.copy2(creds_src_path, profile_dir / "credentials.json")
+    copy_private_file(creds_src_path, profile_dir / "credentials.json")
     click.echo("Credentials copied.")
 
     # Step 3 — OAuth flow

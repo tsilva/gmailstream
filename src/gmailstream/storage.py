@@ -2,7 +2,7 @@ import json
 import logging
 import re
 import unicodedata
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +50,24 @@ def _unique_path(dest: Path, filename: str) -> Path:
         counter += 1
 
 
+def _safe_attachment_filename(filename: str) -> str:
+    """Return a local attachment filename, rejecting path-like input."""
+    raw = str(filename).strip()
+    normalized = raw.replace("\\", "/")
+    path = PurePosixPath(normalized)
+
+    if (
+        not raw
+        or Path(raw).is_absolute()
+        or PureWindowsPath(raw).is_absolute()
+        or normalized != path.name
+        or path.name in {".", ".."}
+    ):
+        raise ValueError(f"Unsafe attachment filename: {filename!r}")
+
+    return path.name
+
+
 def save_eml(target_dir: Path, msg_id: str, date: str, subject: str, raw: bytes):
     """Save message.eml inside a per-message directory."""
     dest = _message_dir(target_dir, msg_id, date, subject)
@@ -82,13 +100,14 @@ def save_attachments(
     except OSError as e:
         raise OSError(f"Failed to create directory for attachments of message {msg_id}: {e}") from e
     for att in attachments:
-        filepath = _unique_path(dest, att["filename"])
+        filename = _safe_attachment_filename(att["filename"])
+        filepath = _unique_path(dest, filename)
         try:
             logger.debug("Saving attachment %s", filepath)
             filepath.write_bytes(att["data"])
         except OSError as e:
             raise OSError(
-                f"Failed to save attachment '{att['filename']}' for message {msg_id}: {e}"
+                f"Failed to save attachment '{filename}' for message {msg_id}: {e}"
             ) from e
 
 
@@ -108,6 +127,16 @@ def _scan_legacy_json_files(
         if date and (most_recent_date is None or date > most_recent_date):
             most_recent_date = date
     return most_recent_date
+
+
+def _read_completed_message_metadata(meta_path: Path) -> dict | None:
+    try:
+        meta = json.loads(meta_path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return None
+    if not isinstance(meta, dict) or not meta.get("id"):
+        return None
+    return meta
 
 
 def scan_downloaded_metadata(
@@ -151,9 +180,11 @@ def scan_downloaded_metadata(
             parts = msg_dir.name.rsplit(" - ", 1)
             if len(parts) != 2:
                 continue
-            short_id = parts[1]
-            date = msg_dir.name[:10]
-            downloaded_ids.add(short_id)
+            meta = _read_completed_message_metadata(msg_dir / "metadata.json")
+            if meta is None:
+                continue
+            date = meta.get("date") or msg_dir.name[:10]
+            downloaded_ids.add(_short_id(meta["id"]))
             if date and (most_recent_date is None or date > most_recent_date):
                 most_recent_date = date
 
