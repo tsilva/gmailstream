@@ -21,10 +21,12 @@ def resolve_profile(name: str, profiles_dir: Path) -> Path:
     """Resolve a profile name or path to a directory.
 
     If `name` is an existing directory, use it directly (backward compat).
-    Otherwise look it up as {profiles_dir}/{name}/.
+    Otherwise only simple profile names are looked up as {profiles_dir}/{name}/.
     """
-    candidate = Path(name)
+    candidate = Path(name).expanduser()
     if candidate.is_dir():
+        return candidate.resolve()
+    if candidate.is_absolute() or "/" in name or "\\" in name:
         return candidate.resolve()
     return profiles_dir / name
 
