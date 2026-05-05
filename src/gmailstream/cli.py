@@ -17,7 +17,13 @@ from gmailstream.gmail_client import (
     search_messages,
 )
 from gmailstream.paths import get_profiles_dir, list_profiles, resolve_profile
-from gmailstream.storage import save_attachments, save_eml, save_metadata, scan_downloaded_metadata
+from gmailstream.storage import (
+    ensure_private_export_dir,
+    save_attachments,
+    save_eml,
+    save_metadata,
+    scan_downloaded_metadata,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +118,7 @@ def _run_profile(ctx, profile, from_date, to_date):
 
     config = load_config(profile_path)
     target = Path(config.target_directory)
-    target.mkdir(parents=True, exist_ok=True)
+    ensure_private_export_dir(target)
 
     click.echo(f"Authenticating profile '{profile_path.name}'...")
     service = get_gmail_service(profile_path)

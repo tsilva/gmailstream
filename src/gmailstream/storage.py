@@ -1,6 +1,8 @@
 import json
 import logging
+import os
 import re
+import tempfile
 import unicodedata
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
@@ -35,17 +37,70 @@ def _message_dir(target_dir: Path, msg_id: str, date: str, subject: str) -> Path
     return _month_dir(target_dir, date) / f"{date} - {_slugify(subject)} - {_short_id(msg_id)}"
 
 
+def ensure_private_export_dir(path: Path) -> None:
+    """Create an export directory readable only by the current user."""
+    path.mkdir(parents=True, exist_ok=True)
+    if os.name != "nt":
+        path.chmod(0o700)
+
+
+def _private_message_dir(target_dir: Path, msg_id: str, date: str, subject: str) -> Path:
+    ensure_private_export_dir(target_dir)
+    ensure_private_export_dir(_month_dir(target_dir, date))
+    dest = _message_dir(target_dir, msg_id, date, subject)
+    ensure_private_export_dir(dest)
+    return dest
+
+
+def _write_private_bytes(path: Path, data: bytes) -> None:
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        if os.name != "nt":
+            os.chmod(tmp_path, 0o600)
+        os.replace(tmp_path, path)
+        if os.name != "nt":
+            path.chmod(0o600)
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+
+def _write_private_text(path: Path, text: str) -> None:
+    _write_private_bytes(path, text.encode())
+
+
+def _write_new_private_bytes(path: Path, data: bytes) -> None:
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    if hasattr(os, "O_BINARY"):
+        flags |= os.O_BINARY
+
+    fd = os.open(path, flags, 0o600)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        if os.name != "nt":
+            path.chmod(0o600)
+    except Exception:
+        path.unlink(missing_ok=True)
+        raise
+
+
 def _unique_path(dest: Path, filename: str) -> Path:
     """Return a unique file path, appending (1), (2), etc. if needed."""
     path = dest / filename
-    if not path.exists():
+    if not path.exists() and not path.is_symlink():
         return path
     stem = Path(filename).stem
     suffix = Path(filename).suffix
     counter = 1
     while True:
         candidate = dest / f"{stem} ({counter}){suffix}"
-        if not candidate.exists():
+        if not candidate.exists() and not candidate.is_symlink():
             return candidate
         counter += 1
 
@@ -72,9 +127,9 @@ def save_eml(target_dir: Path, msg_id: str, date: str, subject: str, raw: bytes)
     """Save message.eml inside a per-message directory."""
     dest = _message_dir(target_dir, msg_id, date, subject)
     try:
-        dest.mkdir(parents=True, exist_ok=True)
+        dest = _private_message_dir(target_dir, msg_id, date, subject)
         logger.debug("Saving message.eml to %s", dest)
-        (dest / "message.eml").write_bytes(raw)
+        _write_private_bytes(dest / "message.eml", raw)
     except OSError as e:
         raise OSError(f"Failed to save .eml for message {msg_id} to {dest}: {e}") from e
 
@@ -83,9 +138,12 @@ def save_metadata(target_dir: Path, msg_id: str, date: str, subject: str, metada
     """Save metadata.json inside a per-message directory."""
     dest = _message_dir(target_dir, msg_id, date, subject)
     try:
-        dest.mkdir(parents=True, exist_ok=True)
+        dest = _private_message_dir(target_dir, msg_id, date, subject)
         logger.debug("Saving metadata.json to %s", dest)
-        (dest / "metadata.json").write_text(json.dumps(metadata, indent=2, ensure_ascii=False))
+        _write_private_text(
+            dest / "metadata.json",
+            json.dumps(metadata, indent=2, ensure_ascii=False),
+        )
     except OSError as e:
         raise OSError(f"Failed to save metadata for message {msg_id} to {dest}: {e}") from e
 
@@ -94,21 +152,24 @@ def save_attachments(
     target_dir: Path, msg_id: str, date: str, subject: str, attachments: list[dict]
 ):
     """Save attachments inside a per-message directory."""
-    dest = _message_dir(target_dir, msg_id, date, subject)
     try:
-        dest.mkdir(parents=True, exist_ok=True)
+        dest = _private_message_dir(target_dir, msg_id, date, subject)
     except OSError as e:
         raise OSError(f"Failed to create directory for attachments of message {msg_id}: {e}") from e
     for att in attachments:
         filename = _safe_attachment_filename(att["filename"])
-        filepath = _unique_path(dest, filename)
-        try:
-            logger.debug("Saving attachment %s", filepath)
-            filepath.write_bytes(att["data"])
-        except OSError as e:
-            raise OSError(
-                f"Failed to save attachment '{filename}' for message {msg_id}: {e}"
-            ) from e
+        while True:
+            filepath = _unique_path(dest, filename)
+            try:
+                logger.debug("Saving attachment %s", filepath)
+                _write_new_private_bytes(filepath, att["data"])
+                break
+            except FileExistsError:
+                continue
+            except OSError as e:
+                raise OSError(
+                    f"Failed to save attachment '{filename}' for message {msg_id}: {e}"
+                ) from e
 
 
 def _scan_legacy_json_files(

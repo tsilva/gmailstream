@@ -51,7 +51,7 @@ gmailstream profiles show <name>                  # print profile config
 - `mode: full` saves `message.eml`, attachments, and `metadata.json`. `mode: attachments_only` saves attachments plus `metadata.json`.
 - Downloads are organized under the target directory as `YYYY-MM/YYYY-MM-DD - subject - shortid/`.
 - Runs are incremental by default. Explicit `--from` or `--to` date ranges search that date range and skip files already present there.
-- `credentials.json` and `token.json` are sensitive local files and are ignored by git.
+- `credentials.json`, `token.json`, and downloaded email exports are sensitive local files. On POSIX systems, gmailstream writes them with user-only permissions, and credentials/tokens are ignored by git.
 
 ## Architecture
 
