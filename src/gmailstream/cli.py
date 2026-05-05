@@ -9,6 +9,7 @@ import yaml
 
 from gmailstream.auth import get_gmail_service
 from gmailstream.config import load_config
+from gmailstream.env import load_app_env
 from gmailstream.gmail_client import (
     fetch_attachments,
     fetch_message_metadata,
@@ -19,6 +20,8 @@ from gmailstream.paths import get_profiles_dir, list_profiles, resolve_profile
 from gmailstream.storage import save_attachments, save_eml, save_metadata, scan_downloaded_metadata
 
 logger = logging.getLogger(__name__)
+
+load_app_env()
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -34,7 +37,7 @@ def _validate_date(value: str | None, param_name: str):
         )
 
 
-@click.group()
+@click.group(invoke_without_command=True)
 @click.option(
     "--profile-dir",
     envvar="GMAIL_STREAMER_PROFILE_DIR",
@@ -42,9 +45,12 @@ def _validate_date(value: str | None, param_name: str):
     type=click.Path(file_okay=False),
     help="Override profiles directory.",
 )
+@click.option("--profile", default=None, type=str, help="Profile to run.")
+@click.option("--from", "from_date", default=None, type=str, help="Start date (YYYY-MM-DD)")
+@click.option("--to", "to_date", default=None, type=str, help="End date (YYYY-MM-DD)")
 @click.option("--verbose", "-v", is_flag=True, default=False, help="Enable debug logging.")
 @click.pass_context
-def main(ctx, profile_dir, verbose):
+def main(ctx, profile_dir, profile, from_date, to_date, verbose):
     """Download Gmail messages matching configurable filters."""
     logging.basicConfig(
         level=logging.DEBUG if verbose else logging.WARNING,
@@ -53,6 +59,17 @@ def main(ctx, profile_dir, verbose):
     ctx.ensure_object(dict)
     ctx.obj["profiles_dir"] = get_profiles_dir(profile_dir)
 
+    if ctx.invoked_subcommand is not None:
+        if profile:
+            raise click.UsageError("--profile cannot be used with a subcommand.")
+        return
+
+    if not profile:
+        click.echo(ctx.get_help())
+        return
+
+    _run_profile(ctx, profile, from_date, to_date)
+
 
 @main.command()
 @click.argument("profile")
@@ -60,6 +77,11 @@ def main(ctx, profile_dir, verbose):
 @click.option("--to", "to_date", default=None, type=str, help="End date (YYYY-MM-DD)")
 @click.pass_context
 def run(ctx, profile, from_date, to_date):
+    """Download messages for a profile."""
+    _run_profile(ctx, profile, from_date, to_date)
+
+
+def _run_profile(ctx, profile, from_date, to_date):
     """Download messages for a profile."""
     _validate_date(from_date, "from")
     _validate_date(to_date, "to")
@@ -232,7 +254,7 @@ def profiles_init(ctx, name):
     click.echo(f"  Filter   : {filter_query}")
     click.echo(f"  Output   : {target_directory}")
     click.echo(f"  Mode     : {mode}")
-    click.echo(f"\nRun it with:\n  gmailstream run {name}")
+    click.echo(f"\nRun it with:\n  gmailstream --profile {name}")
 
 
 @profiles_group.command("show")
