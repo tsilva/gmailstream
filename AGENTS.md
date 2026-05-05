@@ -8,8 +8,8 @@ gmailstream is a Python CLI tool that downloads Gmail messages matching configur
 
 ```bash
 uv sync                                          # Install dependencies
-gmailstream run <profile>                     # Download messages
-gmailstream --profile-dir /path run <profile> # Custom profile dir
+gmailstream --profile <profile>              # Download messages
+gmailstream --profile-dir /path --profile <profile> # Custom profile dir
 gmailstream profiles list                     # List available profiles
 gmailstream profiles init <name>              # Scaffold new profile
 gmailstream profiles show <name>              # Show profile config
@@ -28,7 +28,9 @@ gmailstream profiles show <name>              # Show profile config
 
 Profiles directory is resolved in this order:
 1. `--profile-dir` flag or `GMAIL_STREAMER_PROFILE_DIR` env var
-2. `~/.gmailstream/profiles/` (default)
+2. `~/.config/gmailstream/profiles/` (default)
+
+Environment variables are loaded from `~/.config/gmailstream/.env` when present. Existing shell environment variables take priority.
 
 The `profile` argument to `run` can be a name (looked up in the profiles dir) or a path to an existing directory.
 
