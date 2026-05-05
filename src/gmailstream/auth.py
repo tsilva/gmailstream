@@ -1,4 +1,6 @@
 import logging
+import os
+import tempfile
 from pathlib import Path
 
 from google.auth.exceptions import RefreshError
@@ -12,7 +14,40 @@ logger = logging.getLogger(__name__)
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
 
+def ensure_private_dir(path: Path) -> None:
+    """Create a directory for local secrets and restrict it to the current user."""
+    path.mkdir(parents=True, exist_ok=True)
+    if os.name != "nt":
+        path.chmod(0o700)
+
+
+def write_private_bytes(path: Path, data: bytes) -> None:
+    """Atomically write bytes readable only by the current user on POSIX systems."""
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        if os.name != "nt":
+            os.chmod(tmp_path, 0o600)
+        os.replace(tmp_path, path)
+        if os.name != "nt":
+            path.chmod(0o600)
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+
+def write_private_text(path: Path, text: str) -> None:
+    write_private_bytes(path, text.encode())
+
+
+def copy_private_file(src: Path, dest: Path) -> None:
+    write_private_bytes(dest, src.read_bytes())
+
+
 def get_gmail_service(profile_dir: Path):
+    ensure_private_dir(profile_dir)
     creds_path = profile_dir / "credentials.json"
     token_path = profile_dir / "token.json"
 
@@ -50,8 +85,7 @@ def get_gmail_service(profile_dir: Path):
                     f"OAuth flow failed — could not start local server: {e}\n"
                     "Check that no other process is blocking the port and a browser is available."
                 ) from e
-        with open(token_path, "w") as f:
-            f.write(creds.to_json())
+        write_private_text(token_path, creds.to_json())
         logger.debug("Token saved to %s", token_path)
 
     try:
