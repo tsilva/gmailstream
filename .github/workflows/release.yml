@@ -3,6 +3,13 @@ on:
   push:
     branches: [main]
     paths: [pyproject.toml]
+  workflow_dispatch:
+    inputs:
+      publish_existing_tag:
+        description: "Publish to PyPI even when the version tag already exists"
+        required: false
+        default: false
+        type: boolean
 concurrency:
   group: release
   cancel-in-progress: false
@@ -38,12 +45,12 @@ jobs:
         id: check-version
         uses: tsilva/.github/.github/actions/check-version@86dcc31e237fb54a7797c7a9f6abd423316f1836 # main
       - name: Setup uv
-        if: steps.check-version.outputs.tag_exists == 'false'
+        if: steps.check-version.outputs.tag_exists == 'false' || inputs.publish_existing_tag
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           cache: true
       - name: Build package
-        if: steps.check-version.outputs.tag_exists == 'false'
+        if: steps.check-version.outputs.tag_exists == 'false' || inputs.publish_existing_tag
         run: uv build
       - name: Create GitHub release
         if: steps.check-version.outputs.tag_exists == 'false'
@@ -51,5 +58,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish to PyPI
-        if: steps.check-version.outputs.tag_exists == 'false'
+        if: steps.check-version.outputs.tag_exists == 'false' || inputs.publish_existing_tag
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
