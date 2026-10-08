@@ -1,8 +1,10 @@
-<div align="center">
+<p align="center">
   <img src="https://raw.githubusercontent.com/tsilva/gmailstream/main/logo.png" alt="gmailstream" width="512"/>
-
-  **📧 Download Gmail messages matching your filters to local files 📥**
-</div>
+  <br />
+  <!-- repo-tagline:start -->
+  <strong>📧 Download Gmail messages matching your filters to local files 📥</strong>
+  <!-- repo-tagline:end -->
+</p>
 
 gmailstream is a Python CLI for downloading Gmail messages through OAuth2. It uses named profiles so each export can keep its own Gmail search query, credentials, mode, and target directory.
 
